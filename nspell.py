@@ -6,6 +6,18 @@ import re
 import collections as coll
 import sys
 
+# defualt output
+def spell_out(val):
+    print(val)
+
+g_defout = spell_out
+
+# set alternate output
+def spell_setout(fn):
+    global g_defout
+    g_defout = fn
+
+# --- Core Spelling Engine ---
 def words(text):
     return re.findall('[a-z]+', text.lower())
 
@@ -17,16 +29,12 @@ def train(features):
 
 g_nwords = None
 def known(words):
-    #print g_nwords
     return set(w for w in words if w in g_nwords)
 
 # no param: use disk file
-def setup_dict(text = None):
+def setup_dict():
     global g_nwords
-    if text == None:
-        g_nwords = train(words(file("data/bigspell.txt").read()))
-    else:
-        g_nwords = train(words(text))
+    g_nwords = train(words(file("data/bigspell.txt").read()))
 
 # allow garbage collection to unload
 def unload_dict():
@@ -41,7 +49,6 @@ def edits1(word):
     replaces   = [a + c + b[1:] for a,b in splits for c in g_alpha if b]
     inserts    = [a + c + b for a,b in splits for c in g_alpha]
     return set(deletes + transposes + replaces + inserts)
-    #return set(deletes + transposes)
 
 def known_edits2(word):
     return set(e2 for e1 in edits1(word) for e2 in edits1(e1) if e2 in g_nwords)
@@ -51,25 +58,26 @@ def correct(word):
     candidates = known([lword]) or known(edits1(lword)) or known_edits2(lword) or None
 
     if candidates == None:
-        print "%s: - Unknown word" % (word)
+        g_defout("%s: - Unknown word" % (word))
         return
             
     if len(candidates) == 1:
         nwd = candidates.pop()
         if lword == nwd:
-            print "%s: - Correct" % (word)
+            g_defout("%s: - Correct" % (word))
         else:
-            print "%s: - Incorrect --> %s" % (word, nwd)
+            g_defout("%s: - Incorrect --> %s" % (word, nwd))
         return
 
-    #print candidates
-    print "%s: - Incorrect -" % (word)
+    # print candidates
+    g_defout("%s: - Incorrect -" % (word))
     scandi = sorted(candidates, key=g_nwords.get, reverse=True)
     for scan in scandi:
-        print "  :--> " + scan
+        g_defout("  :--> " + scan)
+
 
 def spell_check(wd_lst):
-    print "\nChecking - " + str(wd_lst)
+    g_defout("\nChecking - " + str(wd_lst))
     setup_dict()
     for wd in wd_lst:
         correct(wd)
@@ -77,10 +85,9 @@ def spell_check(wd_lst):
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print "Usage: spells.py word1 [word2...]"
-        exit
-
-    spell_check(sys.argv[1:])
+        g_defout("Usage: spells.py word1 [word2...]")
+    else:
+        spell_check(sys.argv[1:])
 
 
 # Test
